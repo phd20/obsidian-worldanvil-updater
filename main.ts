@@ -1,3 +1,4 @@
+import { createArticle, getArticle } from "api/article";
 import {
 	App,
 	Editor,
@@ -9,19 +10,23 @@ import {
 	request,
 	Setting,
 } from "obsidian";
-import { stringify } from "querystring";
+import { privateState } from "shared/constants";
+import { parseMarkdown } from "shared/parser";
+import { CreateArticleParams } from "types/article";
+import { FrontMatter } from "types/obsidian";
 
 // Remember to rename these classes and interfaces!
 
 interface MyPluginSettings {
 	applicationKey: string;
 	authToken: string;
-
+	worldId: string;
 }
 
 const DEFAULT_SETTINGS: MyPluginSettings = {
 	applicationKey: "",
 	authToken: "",
+	worldId: "",
 };
 
 export default class MyPlugin extends Plugin {
@@ -48,55 +53,68 @@ export default class MyPlugin extends Plugin {
 
 		// This adds a simple command that can be triggered anywhere
 		this.addCommand({
-			id: "get world",
-			name: "Gets World Anvil World",
+			id: "get article",
+			name: "Gets World Anvil article",
 			callback: () => {
-				const requestParams = {
-					url: "https://www.worldanvil.com/api/aragorn/article/a23bee60-b566-4afc-87fd-f24bff57750a",
-					method: "GET",
-					contentType: "application/json",
-					headers: {
-						"Content-Type": "application/json",
-						"Access-Control-Allow-Origin": "app://obsidian.md",
-						"User-Agent": "PhD20 Obsidian Plugin",
-						"x-application-key": this.settings.applicationKey,
-						"x-auth-token": this.settings.authToken,
-					},
-				};
-				request(requestParams).then((data) => {
-					console.log(data);
-				});
+				getArticle("a23bee60-b566-4afc-87fd-f24bff57750a", this.settings.applicationKey, this.settings.authToken);
+			},
+		});
+
+		this.addCommand({
+			id: "create article",
+			name: "Create World Anvil Article",
+			callback: () => {
+				const activeFile = this.app.workspace.getActiveFile();
+				const frontmatter: FrontMatter = this.app.metadataCache.getFileCache(activeFile).frontmatter;
+				let content = "";
+				this.app.vault.cachedRead(activeFile).then(data => {
+					// console.log(parseMarkdown(data));
+					const createArticleParams: CreateArticleParams = {
+						world: this.settings.worldId,
+						title: activeFile?.basename,
+						template: frontmatter?.template ?? "article",
+						isDraft: frontmatter?.isDraft ?? 1,
+						isWip: frontmatter?.isWip ?? 1,
+						state: frontmatter?.state ?? privateState,
+						content: parseMarkdown(data),
+						tags: String(frontmatter?.tags),
+					}
+					createArticle(createArticleParams, this.settings.applicationKey, this.settings.authToken).then(
+						data => console.log(data)
+					);
+					// this.app.vault.modify(activeFile, articleId);
+				})
 			},
 		});
 		// This adds an editor command that can perform some operation on the current editor instance
-		this.addCommand({
-			id: "sample-editor-command",
-			name: "Sample editor command",
-			editorCallback: (editor: Editor, view: MarkdownView) => {
-				console.log(editor.getSelection());
-				editor.replaceSelection("Sample Editor Command");
-			},
-		});
-		// This adds a complex command that can check whether the current state of the app allows execution of the command
-		this.addCommand({
-			id: "open-sample-modal-complex",
-			name: "Open sample modal (complex)",
-			checkCallback: (checking: boolean) => {
-				// Conditions to check
-				const markdownView =
-					this.app.workspace.getActiveViewOfType(MarkdownView);
-				if (markdownView) {
-					// If checking is true, we're simply "checking" if the command can be run.
-					// If checking is false, then we want to actually perform the operation.
-					if (!checking) {
-						new SampleModal(this.app).open();
-					}
+		// this.addCommand({
+		// 	id: "sample-editor-command",
+		// 	name: "Sample editor command",
+		// 	editorCallback: (editor: Editor, view: MarkdownView) => {
+		// 		console.log(editor.getSelection());
+		// 		editor.replaceSelection("Sample Editor Command");
+		// 	},
+		// });
+		// // This adds a complex command that can check whether the current state of the app allows execution of the command
+		// this.addCommand({
+		// 	id: "open-sample-modal-complex",
+		// 	name: "Open sample modal (complex)",
+		// 	checkCallback: (checking: boolean) => {
+		// 		// Conditions to check
+		// 		const markdownView =
+		// 			this.app.workspace.getActiveViewOfType(MarkdownView);
+		// 		if (markdownView) {
+		// 			// If checking is true, we're simply "checking" if the command can be run.
+		// 			// If checking is false, then we want to actually perform the operation.
+		// 			if (!checking) {
+		// 				new SampleModal(this.app).open();
+		// 			}
 
-					// This command will only show up in Command Palette when the check function returns true
-					return true;
-				}
-			},
-		});
+		// 			// This command will only show up in Command Palette when the check function returns true
+		// 			return true;
+		// 		}
+		// 	},
+		// });
 
 		// This adds a settings tab so the user can configure various aspects of the plugin
 		this.addSettingTab(new SampleSettingTab(this.app, this));
@@ -181,8 +199,20 @@ class SampleSettingTab extends PluginSettingTab {
 					.setPlaceholder("Enter your auth token")
 					.setValue(this.plugin.settings.authToken)
 					.onChange(async (value) => {
-						console.log("Secret: " + value);
 						this.plugin.settings.authToken = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
+			new Setting(containerEl)
+			.setName("World ID")
+			.setDesc("The ID for the world you'll be connecting to.")
+			.addText((text) =>
+				text
+					.setPlaceholder("Enter your world id")
+					.setValue(this.plugin.settings.worldId)
+					.onChange(async (value) => {
+						this.plugin.settings.worldId = value;
 						await this.plugin.saveSettings();
 					})
 			);
