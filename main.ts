@@ -29,7 +29,7 @@ const DEFAULT_SETTINGS: MyPluginSettings = {
 	worldId: "",
 };
 
-export default class MyPlugin extends Plugin {
+export default class WorldAnvilUpdaterPlugin extends Plugin {
 	settings: MyPluginSettings;
 
 	async onload() {
@@ -77,10 +77,13 @@ export default class MyPlugin extends Plugin {
 						isWip: frontmatter?.isWip ?? 1,
 						state: frontmatter?.state ?? privateState,
 						content: parseMarkdown(data),
-						tags: String(frontmatter?.tags),
+						tags: frontmatter?.tags ? String(frontmatter?.tags) : '',
 					}
 					createArticle(createArticleParams, this.settings.applicationKey, this.settings.authToken).then(
-						data => console.log(data)
+						data => {
+							const articleId = JSON.parse(data)?.id;
+							new Notice(`Successfully created article: ${articleId}.`)
+						}
 					);
 					// this.app.vault.modify(activeFile, articleId);
 				})
@@ -117,7 +120,7 @@ export default class MyPlugin extends Plugin {
 		// });
 
 		// This adds a settings tab so the user can configure various aspects of the plugin
-		this.addSettingTab(new SampleSettingTab(this.app, this));
+		this.addSettingTab(new WorldAnvilUpdaterSettingTab(this.app, this));
 
 		// If the plugin hooks up any global DOM events (on parts of the app that doesn't belong to this plugin)
 		// Using this function will automatically remove the event listener when this plugin is disabled.
@@ -162,10 +165,10 @@ class SampleModal extends Modal {
 	}
 }
 
-class SampleSettingTab extends PluginSettingTab {
-	plugin: MyPlugin;
+class WorldAnvilUpdaterSettingTab extends PluginSettingTab {
+	plugin: WorldAnvilUpdaterPlugin;
 
-	constructor(app: App, plugin: MyPlugin) {
+	constructor(app: App, plugin: WorldAnvilUpdaterPlugin) {
 		super(app, plugin);
 		this.plugin = plugin;
 	}
