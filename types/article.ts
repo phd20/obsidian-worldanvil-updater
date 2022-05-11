@@ -4,6 +4,7 @@ export interface CreateArticleParams {
 	template: TemplateType;
 	isDraft: 0 | 1;
 	isWip: 0 | 1;
+	isAdultContent: 0 | 1;
 	state: StateType;
 	content?: string;
 	tags?: string;

@@ -75,6 +75,7 @@ export default class WorldAnvilUpdaterPlugin extends Plugin {
 						template: frontmatter?.template ?? "article",
 						isDraft: frontmatter?.isDraft ?? 1,
 						isWip: frontmatter?.isWip ?? 1,
+						isAdultContent: 0,
 						state: frontmatter?.state ?? privateState,
 						content: parseMarkdown(data),
 						tags: frontmatter?.tags ? String(frontmatter?.tags) : '',
